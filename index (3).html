@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>جرد الصالون</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3efe8;--sf:#fffdf9;--tx:#1d2a2a;--mu:#6b7775;--ac:#0f5c5c;--ac2:#b4452f;--bd:#ddd5c8;--ok:#1d7a4d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a1a;--sf:#1a2424;--tx:#ece8df;--mu:#93a3a0;--ac:#4cc0b8;--ac2:#e58b73;--bd:#2d3a3a;--ok:#5fcf93}}
+:root[data-theme="dark"]{--bg:#121a1a;--sf:#1a2424;--tx:#ece8df;--mu:#93a3a0;--ac:#4cc0b8;--ac2:#e58b73;--bd:#2d3a3a;--ok:#5fcf93}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Cairo',Tahoma,Arial,sans-serif;line-height:1.6}
+main{max-width:860px;margin:0 auto;padding:18px 14px 40px}
+h1{font-size:26px;font-weight:800;margin:6px 0 2px}
+.sub{color:var(--mu);margin:0 0 18px}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.box{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:12px}
+.box.main{background:var(--ac);color:#fff;border-color:var(--ac)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .box.main{color:#0b1515}}
+.box small{display:block;opacity:.8;font-size:13px}
+.box b{display:block;font-size:26px;font-weight:800}
+.ch{display:flex;gap:8px;font-size:12px;margin-top:4px;opacity:.9;flex-wrap:wrap}
+.cnt{font-size:12px;opacity:.8}
+form,.panel{background:var(--sf);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-top:14px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+label{font-size:13px;color:var(--mu);display:block;margin-bottom:3px}
+input,select,button{font:inherit;width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--tx)}
+button.go{background:var(--ac2);color:#fff;border-color:var(--ac2);font-weight:600;cursor:pointer;margin-top:10px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+h2{font-size:18px;margin:0 0 8px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.top input{width:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:right;padding:7px 6px;border-bottom:1px solid var(--bd)}
+th{color:var(--mu);font-weight:600}
+.wrap{overflow-x:auto}
+.del{width:auto;padding:2px 9px;cursor:pointer;color:var(--ac2)}
+.empty{color:var(--mu);padding:10px 0}
+@media (max-width:560px){.sum{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>جرد الصالون</h1>
+<p class="sub">سجّل حساب كل زبون وهيتحسب لك اليوم و١٥ يوم والشهر.</p>
+
+<section class="sum" id="sum"></section>
+
+<form id="f">
+  <div class="row">
+    <div><label for="chair">الحلاق</label>
+      <select id="chair"><option value="1">أحمد</option><option value="2">مصطفى</option><option value="3">حسام</option></select></div>
+    <div><label for="amt">الحساب (جنيه)</label><input id="amt" type="number" min="0" step="any" inputmode="decimal" required></div>
+    <div><label for="svc">الخدمة (اختياري)</label><input id="svc" type="text" placeholder="حلاقة / دقن..."></div>
+    <div><label for="dt">التاريخ</label><input id="dt" type="date" required></div>
+  </div>
+  <button class="go" type="submit">سجّل الحساب</button>
+</form>
+
+<section class="panel">
+  <div class="top"><h2>حسابات يوم</h2><input id="view" type="date" aria-label="اختر اليوم"></div>
+  <div class="wrap" id="list"></div>
+</section>
+</main>
+<script>
+const KEY='salon-ledger-v1';
+const NAMES=['أحمد','مصطفى','حسام'];
+let data=[];
+try{data=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){data=[]}
+if(!Array.isArray(data))data=[];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}};
+const $=id=>document.getElementById(id);
+const iso=d=>{const z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())};
+const today=iso(new Date());
+const fmt=n=>new Intl.NumberFormat('ar-EG',{maximumFractionDigits:2}).format(n);
+$('dt').value=today;$('view').value=today;
+
+function sums(){
+  const now=new Date(),t=iso(now);
+  const d15=new Date(now);d15.setDate(d15.getDate()-14);
+  const s15=iso(d15), mon=t.slice(0,7);
+  const P=[
+    {n:'اليوم',f:e=>e.d===t,c:1},
+    {n:'آخر ١٥ يوم',f:e=>e.d>=s15&&e.d<=t},
+    {n:'الشهر ده',f:e=>e.d.slice(0,7)===mon}
+  ];
+  $('sum').innerHTML=P.map((p,i)=>{
+    const rows=data.filter(p.f);
+    const tot=rows.reduce((a,e)=>a+e.a,0);
+    const by=[1,2,3].map(c=>'<span>'+NAMES[c-1]+': '+fmt(rows.filter(e=>e.c===c).reduce((a,e)=>a+e.a,0))+'</span>').join('');
+    return '<div class="box'+(i===0?' main':'')+'"><small>'+p.n+'</small><b>'+fmt(tot)+'</b><div class="cnt">'+fmt(rows.length)+' زبون</div><div class="ch">'+by+'</div></div>';
+  }).join('');
+}
+function list(){
+  const d=$('view').value||today;
+  const rows=data.filter(e=>e.d===d).sort((a,b)=>b.id-a.id);
+  if(!rows.length){$('list').innerHTML='<div class="empty">مفيش حسابات في اليوم ده.</div>';return}
+  const tot=rows.reduce((a,e)=>a+e.a,0);
+  $('list').innerHTML='<table><thead><tr><th>الحلاق</th><th>الخدمة</th><th>الحساب</th><th></th></tr></thead><tbody>'+
+  rows.map(e=>'<tr><td>'+NAMES[e.c-1]+'</td><td>'+esc(e.s||'—')+'</td><td>'+fmt(e.a)+'</td><td><button class="del" data-id="'+e.id+'" aria-label="احذف">حذف</button></td></tr>').join('')+
+  '</tbody><tfoot><tr><th colspan="2">إجمالي اليوم</th><th colspan="2">'+fmt(tot)+' جنيه</th></tr></tfoot></table>';
+}
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(){sums();list()}
+$('f').addEventListener('submit',ev=>{
+  ev.preventDefault();
+  const a=parseFloat($('amt').value);
+  if(!(a>=0))return;
+  data.push({id:Date.now(),c:+$('chair').value,a:a,s:$('svc').value.trim(),d:$('dt').value});
+  save();$('amt').value='';$('svc').value='';$('view').value=$('dt').value;render();$('amt').focus();
+});
+$('list').addEventListener('click',ev=>{
+  const b=ev.target.closest('.del');if(!b)return;
+  data=data.filter(e=>String(e.id)!==b.dataset.id);save();render();
+});
+$('view').addEventListener('change',list);
+render();
+</script>
+</body>
+</html>
